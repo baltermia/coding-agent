@@ -60,14 +60,21 @@ def editor(file_manager, execution_engine, debug_logger):
 
     with action_col3:
         if st.button("Run Code", width='stretch'):
-            result = execution_engine.run_code(st.session_state.editor_content)
-            out, err = debug_logger.format_debug_output(result)
-            st.session_state.execution_output = out
-            st.session_state.execution_error = err
+            try:
+                ast.parse(st.session_state.editor_content)
+            except SyntaxError as err:
+                st.error(f"SyntaxError: {err.msg} (line {err.lineno})")
+            else:
+                result = execution_engine.run_code(st.session_state.editor_content)
+                out, err = debug_logger.format_debug_output(result)
+                st.session_state.execution_output = out
+                st.session_state.execution_error = err
 
     out_tab, err_tab = st.tabs(["Execution Output", "Debug / Errors"])
 
     with out_tab:
+        if st.session_state.execution_error.strip():
+            st.warning("⚠️ Errors occurred during execution. Check the **Debug / Errors** tab for details.")
         st.code(st.session_state.execution_output, language="text")
 
     with err_tab:
