@@ -46,6 +46,40 @@ def _extract_selected_row(event) -> int | None:
     return row if isinstance(row, int) else None
 
 
+@st.dialog("Create New File")
+def _new_file_dialog(file_manager):
+    new_file_name = st.text_input(
+        "File name",
+        value="",
+        placeholder="e.g., main.py or data.json",
+        key="new_file_name_input"
+    )
+
+    if new_file_name:
+        # Validate file extension
+        if "." not in new_file_name:
+            st.warning("Please include a file extension (e.g., .py, .js)")
+        else:
+            suffix = "." + new_file_name.rsplit(".", 1)[-1].lower()
+            if suffix not in {".py", ".js", ".ts", ".html", ".css", ".json", ".md", ".txt"}:
+                st.warning(f"Unsupported file type: {suffix}")
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Create", use_container_width=True, key="create_file_btn"):
+                        try:
+                            file_manager.save_file(new_file_name, "")
+                            st.session_state.selected_file = new_file_name
+                            st.session_state.editor_content = ""
+                            st.success(f"File created: {new_file_name}")
+                            st.rerun()
+                        except Exception as err:
+                            st.error(f"Error creating file: {err}")
+                with col2:
+                    if st.button("Cancel", use_container_width=True, key="cancel_file_btn"):
+                        st.rerun()
+
+
 def explorer(file_manager):
     st.sidebar.markdown("**Files**")
 
@@ -53,6 +87,10 @@ def explorer(file_manager):
     if new_root != st.session_state.project_root:
         st.session_state.project_root = new_root
         st.rerun()
+
+    # Add new file button
+    if st.sidebar.button("➕ Add New File", use_container_width=True):
+        _new_file_dialog(file_manager)
 
     try:
         files = file_manager.list_files()
