@@ -71,12 +71,14 @@ def _new_file_dialog(file_manager):
                             file_manager.save_file(new_file_name, "")
                             st.session_state.selected_file = new_file_name
                             st.session_state.editor_content = ""
+                            st.session_state.active_dialog = None
                             st.success(f"File created: {new_file_name}")
                             st.rerun()
                         except Exception as err:
                             st.error(f"Error creating file: {err}")
                 with col2:
                     if st.button("Cancel", use_container_width=True, key="cancel_file_btn"):
+                        st.session_state.active_dialog = None
                         st.rerun()
 
 
@@ -90,7 +92,7 @@ def explorer(file_manager):
 
     # Add new file button
     if st.sidebar.button("➕ Add New File", use_container_width=True):
-        _new_file_dialog(file_manager)
+        st.session_state.active_dialog = "create_file"
 
     try:
         files = file_manager.list_files()

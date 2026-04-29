@@ -1,9 +1,9 @@
 from pathlib import Path
 import streamlit as st
 
-from gui.chat import chat
+from gui.chat import chat, _search_results_dialog
 from gui.editor import editor
-from gui.explorer import explorer
+from gui.explorer import explorer, _new_file_dialog
 
 from backend import (
     ChatManager,
@@ -36,6 +36,12 @@ def _init_state() -> None:
     if "last_search_results" not in st.session_state:
         st.session_state.last_search_results = []
 
+    if "last_search_query" not in st.session_state:
+        st.session_state.last_search_query = None
+
+    if "active_dialog" not in st.session_state:
+        st.session_state.active_dialog = None
+
 
 def main() -> None:
     st.set_page_config(page_title="AI Code Editor", layout="wide")
@@ -58,6 +64,11 @@ def main() -> None:
 
     with col_right:
         chat(chat_manager, search_manager)
+
+    if st.session_state.active_dialog == "search_results":
+        _search_results_dialog()
+    elif st.session_state.active_dialog == "create_file":
+        _new_file_dialog(file_manager)
 
 
 if __name__ == "__main__":
