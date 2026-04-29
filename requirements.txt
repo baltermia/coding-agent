@@ -3,3 +3,5 @@ watchdog
 streamlit-ace
 ddgs
 pandas
+openai
+python-dotenv
