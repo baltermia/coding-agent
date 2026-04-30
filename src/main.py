@@ -46,6 +46,19 @@ def _init_state() -> None:
 def main() -> None:
     st.set_page_config(page_title="AI Code Editor", layout="wide")
 
+    # Hide the default Streamlit header and footer
+    st.markdown(
+        """
+        <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        #root > div:nth-child(1) > div > div > div > div > section > div {padding-top: 0rem;}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     _init_state()
 
     file_manager = FileManager(st.session_state.project_root)
