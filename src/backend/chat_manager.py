@@ -1,13 +1,32 @@
 from .system_prompter import SystemPrompter
+from .server_utils import get_client, chat
 
 
 class ChatManager:
     def __init__(self, system_prompter: SystemPrompter) -> None:
         self.system_prompter = system_prompter
+        self.client = get_client()
 
     def send_message(self, message: str, file_context: str = "", debug_context: str = "") -> str:
-        _ = self.system_prompter.generate_prompt(message, file_context, debug_context)
-        return self._fallback_response(message, file_context, debug_context)
+        prompt = self.system_prompter.generate_prompt(message, file_context, debug_context)
+
+        # Format messages for OpenAI API
+        messages = [
+            {
+                "role": "system",
+                "content": self.system_prompter.default_system_prompt,
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        try:
+            # Call the LLM via server_utils
+            response = chat(self.client, messages)
+            return response
+        except Exception as e:
+            # Fallback if LLM call fails
+            print(f"LLM call failed: {e}")
+            return self._fallback_response(message, file_context, debug_context)
 
     def _fallback_response(self, message: str, file_context: str, debug_context: str) -> str:
         summary = []
