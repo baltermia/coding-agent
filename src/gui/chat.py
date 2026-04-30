@@ -21,15 +21,25 @@ def _search_results_dialog():
     if st.button("Close", use_container_width=True):
         st.session_state.active_dialog = None
         st.rerun()
+
+
 def chat(chat_manager, search_manager):
-    chat_box = st.container(border=True)
-    with chat_box:
+    st.markdown(
+        """
+        <style>
+        .chat-message { font-size: 0.85rem; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.container(height=400):
         if not st.session_state.chat_history:
             st.write("No messages yet.")
         else:
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+                    st.markdown(f'<div class="chat-message">{message["content"]}</div>', unsafe_allow_html=True)
 
     user_message = st.chat_input("Ask for code suggestions, debugging, or explanations")
     if user_message:
@@ -39,7 +49,10 @@ def chat(chat_manager, search_manager):
             f"stdout:\n{st.session_state.execution_output}\n\n"
             f"stderr:\n{st.session_state.execution_error}"
         )
-        response = chat_manager.send_message(user_message, file_context=file_context, debug_context=debug_context)
+
+        with st.spinner("🤔 Thinking..."):
+            response = chat_manager.send_message(user_message, file_context=file_context, debug_context=debug_context)
+
         st.session_state.chat_history.append({"role": "assistant", "content": response})
         st.rerun()
 
