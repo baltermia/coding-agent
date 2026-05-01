@@ -45,8 +45,10 @@ def _extract_selected_row(event) -> int | None:
     row = getattr(first, "row", None)
     return row if isinstance(row, int) else None
 
+def _new_file_dialog_cleanup() -> None:
+    st.session_state.active_dialog = None
 
-@st.dialog("Create New File")
+@st.dialog("Create New File", on_dismiss=_new_file_dialog_cleanup)
 def _new_file_dialog(file_manager):
     new_file_name = st.text_input(
         "File name",

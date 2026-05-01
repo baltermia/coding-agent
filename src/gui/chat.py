@@ -1,7 +1,9 @@
 import streamlit as st
 
+def _search_results_dialog_cleanup() -> None:
+    st.session_state.active_dialog = None
 
-@st.dialog("Search Results", width="large")
+@st.dialog("Search Results", width="large", on_dismiss=_search_results_dialog_cleanup)
 def _search_results_dialog():
     query = st.session_state.last_search_query or ""
 
