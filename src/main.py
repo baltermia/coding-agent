@@ -3,7 +3,7 @@ import streamlit as st
 
 from gui.chat import chat, _search_results_dialog
 from gui.editor import editor
-from gui.explorer import explorer, _new_file_dialog
+from gui.explorer import explorer, _new_file_dialog, explorer_tree
 
 from backend import (
     ChatManager,
@@ -55,7 +55,8 @@ def main() -> None:
     execution_engine = ExecutionEngine()
     debug_logger = DebugLogger()
 
-    explorer(file_manager)
+    # explorer(file_manager)
+    explorer_tree(file_manager)
 
     col_left, col_right = st.columns([2, 1], gap="large")
 

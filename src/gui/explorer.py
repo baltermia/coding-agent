@@ -1,5 +1,9 @@
+import json
 import streamlit as st
+import streamlit_antd_components as sac
 import pandas as pd
+import os
+from pathlib import Path
 
 def _file_badge(file_path: str) -> str:
     suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
@@ -14,6 +18,21 @@ def _file_badge(file_path: str) -> str:
         "txt": "TX",
     }
     return badges.get(suffix, "FI")
+
+def _file_icon(file_path: str) -> dict[str, str]:
+    suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+    icons = {
+        "py": {"icon": "filetype-py", "color": "yellow"},
+        "js": {"icon": "filetype-js", "color": "orange"},
+        "ts": {"icon": "file-earmark-code-fill", "color": "blue"},
+        "html": {"icon": "filetype-html", "color": "red"},
+        "css": {"icon": "filetype-css", "color": "pink"},
+        "json": {"icon": "filetype-json", "color": "grape"},
+        "md": {"icon": "filetype-md", "color": "indigo"},
+        "txt": {"icon": "filetype-txt", "color": "white"},
+    }
+
+    return icons.get(suffix, {"icon": "file", "color": "white"})
 
 def _format_file_label(file_path: str) -> str:
     name = file_path.rsplit("/", 1)[-1]
@@ -143,3 +162,65 @@ def explorer(file_manager):
         st.session_state.selected_file = current
         st.session_state.editor_content = content
 
+def explorer_tree(file_manager):
+    st.sidebar.markdown("**Files**")
+
+    new_root = st.sidebar.text_input(
+        "Project root",
+        value=st.session_state.project_root
+    )
+    if new_root != st.session_state.project_root:
+        st.session_state.project_root = new_root
+        st.rerun()
+
+    try:
+        tree = file_manager.build_tree()
+    except Exception as err:
+        st.sidebar.error(f"Cannot build file tree: {err}")
+        return
+
+    tree_items = [dict_to_sac(tree, st.session_state.project_root)]
+
+    with st.sidebar:
+        st.title("Explorer")
+        selected = sac.tree(
+            items=tree_items,
+            show_line=True,
+            format_func=lambda path: os.path.basename(path),
+            open_all=False,
+            checkbox=False
+        )
+
+        try:
+            if selected != st.session_state.selected_file:
+                content = file_manager.read_file_absolute(selected)
+                st.session_state.selected_file = selected
+                st.session_state.editor_content = content
+                st.rerun()
+        except Exception as err:
+            print(err)
+
+
+def dict_to_sac(node, current_path=""):
+    if current_path.split("/")[-1] != node["name"]:
+        full_node_path = os.path.join(current_path, node["name"])
+    else:
+        full_node_path = current_path
+
+    children = []
+
+    for folder in node.get("children_dirs", []):
+        children.append(dict_to_sac(folder, current_path=full_node_path))
+
+    for file in node.get("children_files", []):
+        full_file_path = os.path.join(full_node_path, file["name"])
+        file_icon = _file_icon(file["name"])
+        children.append(
+            sac.TreeItem(label=full_file_path, icon=sac.BsIcon(name=file_icon["icon"], size=15, color=file_icon["color"]))
+        )
+
+    return sac.TreeItem(
+        label=node["name"],
+        icon='folder-fill' if node["type"] == "dir" else 'file-earmark',
+        children=children if children else None
+    )
