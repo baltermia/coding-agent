@@ -89,7 +89,9 @@ def _new_file_dialog(file_manager):
                 with col1:
                     if st.button("Create", use_container_width=True, key="create_file_btn"):
                         try:
-                            file_manager.save_file(new_file_name, "")
+                            file_manager.save_file_in_current_directory(
+                                st.session_state.current_directory+"/"+new_file_name,
+                                "")
                             st.session_state.selected_file = new_file_name
                             st.session_state.editor_content = ""
                             st.session_state.active_dialog = None
@@ -165,6 +167,8 @@ def explorer(file_manager):
 def explorer_tree(file_manager):
     st.sidebar.markdown("**Files**")
 
+    project_root = Path(st.session_state.project_root).resolve()
+
     new_root = st.sidebar.text_input(
         "Project root",
         value=st.session_state.project_root
@@ -173,13 +177,18 @@ def explorer_tree(file_manager):
         st.session_state.project_root = new_root
         st.rerun()
 
+    if st.sidebar.button("➕ Create New File", use_container_width=True):
+        st.session_state.active_dialog = "create_file"
+
     try:
         tree = file_manager.build_tree()
     except Exception as err:
         st.sidebar.error(f"Cannot build file tree: {err}")
         return
 
-    tree_items = [dict_to_sac(tree, st.session_state.project_root)]
+    tree_items = [dict_to_sac(node=tree,
+                              project_root=project_root,
+                              current_path=project_root,)]
 
     with st.sidebar:
         st.title("Explorer")
@@ -191,36 +200,81 @@ def explorer_tree(file_manager):
             checkbox=False
         )
 
-        try:
-            if selected != st.session_state.selected_file:
-                content = file_manager.read_file_absolute(selected)
-                st.session_state.selected_file = selected
+
+        if selected != st.session_state.selected_file:
+            if selected is None:
+                selected = st.session_state.project_root
+                return
+            if isinstance(selected, list):
+                return
+
+            selected_relative = Path(selected)
+            selected_absolute = (project_root / selected_relative).resolve()
+
+            try:
+                selected_absolute.relative_to(project_root)
+            except ValueError:
+                st.sidebar.error("Invalid path selected")
+                return
+
+            if selected_absolute.is_dir():
+                st.session_state.current_directory = str(selected_absolute)
+            else:
+                st.session_state.current_directory = str(selected_absolute.parent)
+
+            try:
+                content = file_manager.read_file_absolute(st.session_state.project_root, selected)
+                st.session_state.selected_file = (str(selected_relative))
                 st.session_state.editor_content = content
+
                 st.rerun()
-        except Exception as err:
-            print(err)
+            except IsADirectoryError:
+                pass
+            except PermissionError:
+                st.sidebar.error(f"Permission denied: {selected}")
+            except FileNotFoundError:
+                pass
+            except OSError as err:
+                st.sidebar.error(f"OS error reading file: {err}")
+            except Exception as err:
+                st.sidebar.error(f"Unexpected error: {err}")
+                print(err)
+
+            # st.rerun()
 
 
-def dict_to_sac(node, current_path=""):
-    if current_path.split("/")[-1] != node["name"]:
-        full_node_path = os.path.join(current_path, node["name"])
+def dict_to_sac(node, project_root: Path, current_path:Path):
+    if current_path.name != node["name"]:
+        node_path = current_path / node["name"]
     else:
-        full_node_path = current_path
+        node_path = current_path
+
+    try:
+        # print("creating relative path here")
+        relative_path = node_path.relative_to(project_root)
+    except ValueError:
+        relative_path = Path(node["name"])
 
     children = []
 
     for folder in node.get("children_dirs", []):
-        children.append(dict_to_sac(folder, current_path=full_node_path))
+        children.append(dict_to_sac(node=folder,
+                                    project_root=project_root,
+                                    current_path=node_path))
 
     for file in node.get("children_files", []):
-        full_file_path = os.path.join(full_node_path, file["name"])
+        file_path = node_path / file["name"]
+        file_relative = file_path.relative_to(project_root)
+
         file_icon = _file_icon(file["name"])
+
         children.append(
-            sac.TreeItem(label=full_file_path, icon=sac.BsIcon(name=file_icon["icon"], size=15, color=file_icon["color"]))
+            sac.TreeItem(label=str(file_relative),
+                         icon=sac.BsIcon(name=file_icon["icon"], size=15, color=file_icon["color"]))
         )
 
     return sac.TreeItem(
-        label=node["name"],
+        label=str(relative_path) if str(relative_path) != "." else str(node["name"]),
         icon='folder-fill' if node["type"] == "dir" else 'file-earmark',
         children=children if children else None
     )

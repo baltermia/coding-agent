@@ -66,10 +66,14 @@ class FileManager:
         path = self._resolve_path(file_path)
         return path.read_text(encoding="utf-8")
 
-    def read_file_absolute(self, file_path: str) -> str:
-        path = Path(file_path)
+    def read_file_absolute(self, root_path: str, file_name: str) -> str:
+        path = Path(root_path+"/"+file_name)
         return path.read_text(encoding="utf-8")
 
     def save_file(self, file_path: str, content: str) -> None:
         path = self._resolve_path(file_path)
+        path.write_text(content, encoding="utf-8")
+
+    def save_file_in_current_directory(self, file_path: str, content: str) -> None:
+        path = Path(file_path)
         path.write_text(content, encoding="utf-8")

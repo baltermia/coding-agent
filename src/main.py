@@ -18,6 +18,9 @@ def _init_state() -> None:
     if "project_root" not in st.session_state:
         st.session_state.project_root = str(Path(__file__).resolve().parent.parent)
 
+    if "current_directory" not in st.session_state:
+        st.session_state.current_directory = str(Path(__file__).resolve().parent.parent)
+
     if "selected_file" not in st.session_state:
         st.session_state.selected_file = ""
 
