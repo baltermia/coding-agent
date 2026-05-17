@@ -3,7 +3,7 @@ import streamlit as st
 
 from gui.chat import chat, _search_results_dialog
 from gui.editor import editor
-from gui.explorer import explorer, _new_file_dialog
+from gui.explorer import explorer, _new_file_dialog, explorer_tree
 
 from backend import (
     ChatManager,
@@ -17,6 +17,9 @@ from backend import (
 def _init_state() -> None:
     if "project_root" not in st.session_state:
         st.session_state.project_root = str(Path(__file__).resolve().parent.parent)
+
+    if "current_directory" not in st.session_state:
+        st.session_state.current_directory = str(Path(__file__).resolve().parent.parent)
 
     if "selected_file" not in st.session_state:
         st.session_state.selected_file = ""
@@ -55,7 +58,8 @@ def main() -> None:
     execution_engine = ExecutionEngine()
     debug_logger = DebugLogger()
 
-    explorer(file_manager)
+    # explorer(file_manager)
+    explorer_tree(file_manager)
 
     col_left, col_right = st.columns([2, 1], gap="large")
 

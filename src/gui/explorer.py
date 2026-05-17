@@ -1,5 +1,9 @@
+import json
 import streamlit as st
+import streamlit_antd_components as sac
 import pandas as pd
+import os
+from pathlib import Path
 
 def _file_badge(file_path: str) -> str:
     suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
@@ -14,6 +18,21 @@ def _file_badge(file_path: str) -> str:
         "txt": "TX",
     }
     return badges.get(suffix, "FI")
+
+def _file_icon(file_path: str) -> dict[str, str]:
+    suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
+    icons = {
+        "py": {"icon": "filetype-py", "color": "yellow"},
+        "js": {"icon": "filetype-js", "color": "orange"},
+        "ts": {"icon": "file-earmark-code-fill", "color": "blue"},
+        "html": {"icon": "filetype-html", "color": "red"},
+        "css": {"icon": "filetype-css", "color": "pink"},
+        "json": {"icon": "filetype-json", "color": "grape"},
+        "md": {"icon": "filetype-md", "color": "indigo"},
+        "txt": {"icon": "filetype-txt", "color": "white"},
+    }
+
+    return icons.get(suffix, {"icon": "file", "color": "white"})
 
 def _format_file_label(file_path: str) -> str:
     name = file_path.rsplit("/", 1)[-1]
@@ -70,7 +89,9 @@ def _new_file_dialog(file_manager):
                 with col1:
                     if st.button("Create", use_container_width=True, key="create_file_btn"):
                         try:
-                            file_manager.save_file(new_file_name, "")
+                            file_manager.save_file_in_current_directory(
+                                st.session_state.current_directory+"/"+new_file_name,
+                                "")
                             st.session_state.selected_file = new_file_name
                             st.session_state.editor_content = ""
                             st.session_state.active_dialog = None
@@ -143,3 +164,117 @@ def explorer(file_manager):
         st.session_state.selected_file = current
         st.session_state.editor_content = content
 
+def explorer_tree(file_manager):
+    st.sidebar.markdown("**Files**")
+
+    project_root = Path(st.session_state.project_root).resolve()
+
+    new_root = st.sidebar.text_input(
+        "Project root",
+        value=st.session_state.project_root
+    )
+    if new_root != st.session_state.project_root:
+        st.session_state.project_root = new_root
+        st.rerun()
+
+    if st.sidebar.button("➕ Create New File", use_container_width=True):
+        st.session_state.active_dialog = "create_file"
+
+    try:
+        tree = file_manager.build_tree()
+    except Exception as err:
+        st.sidebar.error(f"Cannot build file tree: {err}")
+        return
+
+    tree_items = [dict_to_sac(node=tree,
+                              project_root=project_root,
+                              current_path=project_root,)]
+
+    with st.sidebar:
+        st.title("Explorer")
+        selected = sac.tree(
+            items=tree_items,
+            show_line=True,
+            format_func=lambda path: os.path.basename(path),
+            open_all=False,
+            checkbox=False
+        )
+
+
+        if selected != st.session_state.selected_file:
+            if selected is None:
+                selected = st.session_state.project_root
+                return
+            if isinstance(selected, list):
+                return
+
+            selected_relative = Path(selected)
+            selected_absolute = (project_root / selected_relative).resolve()
+
+            try:
+                selected_absolute.relative_to(project_root)
+            except ValueError:
+                st.sidebar.error("Invalid path selected")
+                return
+
+            if selected_absolute.is_dir():
+                st.session_state.current_directory = str(selected_absolute)
+            else:
+                st.session_state.current_directory = str(selected_absolute.parent)
+
+            try:
+                content = file_manager.read_file_absolute(st.session_state.project_root, selected)
+                st.session_state.selected_file = (str(selected_relative))
+                st.session_state.editor_content = content
+
+                st.rerun()
+            except IsADirectoryError:
+                pass
+            except PermissionError:
+                st.sidebar.error(f"Permission denied: {selected}")
+            except FileNotFoundError:
+                pass
+            except OSError as err:
+                st.sidebar.error(f"OS error reading file: {err}")
+            except Exception as err:
+                st.sidebar.error(f"Unexpected error: {err}")
+                print(err)
+
+            # st.rerun()
+
+
+def dict_to_sac(node, project_root: Path, current_path:Path):
+    if current_path.name != node["name"]:
+        node_path = current_path / node["name"]
+    else:
+        node_path = current_path
+
+    try:
+        # print("creating relative path here")
+        relative_path = node_path.relative_to(project_root)
+    except ValueError:
+        relative_path = Path(node["name"])
+
+    children = []
+
+    for folder in node.get("children_dirs", []):
+        children.append(dict_to_sac(node=folder,
+                                    project_root=project_root,
+                                    current_path=node_path))
+
+    for file in node.get("children_files", []):
+        file_path = node_path / file["name"]
+        file_relative = file_path.relative_to(project_root)
+
+        file_icon = _file_icon(file["name"])
+
+        children.append(
+            sac.TreeItem(label=str(file_relative),
+                         icon=sac.BsIcon(name=file_icon["icon"], size=15, color=file_icon["color"]))
+        )
+
+    return sac.TreeItem(
+        label=str(relative_path) if str(relative_path) != "." else str(node["name"]),
+        icon='folder-fill' if node["type"] == "dir" else 'file-earmark',
+        children=children if children else None
+    )

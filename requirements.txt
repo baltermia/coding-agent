@@ -5,3 +5,4 @@ ddgs
 pandas
 openai
 python-dotenv
+streamlit_antd_components
