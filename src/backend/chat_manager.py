@@ -16,7 +16,10 @@ class ChatManager:
                 "role": "system",
                 "content": self.system_prompter.default_system_prompt,
             },
-            {"role": "user", "content": prompt},
+            {
+                "role": "user", 
+                "content": prompt
+            },
         ]
 
         try:
